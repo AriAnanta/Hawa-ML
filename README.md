@@ -1,4 +1,4 @@
-# Dokumentasi Fitur Prediksi AQI (ISPU) 48 Jam
+# Dokumentasi Fitur Prediksi AQI (ISPU) 48 Jam 1
 
 Fitur Prediksi AQI (Air Quality Index) atau ISPU (Indeks Standar Pencemar Udara) adalah komponen cerdas yang menggunakan teknologi **Machine Learning** untuk memprediksi kualitas udara di masa depan berdasarkan data historis.
 
