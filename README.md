@@ -1,83 +1,89 @@
+# Dokumentasi Fitur Prediksi AQI (ISPU) 48 Jam (PM2.5 & PM10)
 
-# Dokumentasi Fitur Prediksi AQI (ISPU) 48 Jam 1
-
-# Dokumentasi Fitur Prediksi AQI (ISPU) 48 Jam
-
-Fitur Prediksi AQI (Air Quality Index) atau ISPU (Indeks Standar Pencemar Udara) adalah komponen cerdas yang menggunakan teknologi **Machine Learning** untuk memprediksi kualitas udara di masa depan berdasarkan data historis.
+Fitur Prediksi AQI (Air Quality Index) atau ISPU (Indeks Standar Pencemar Udara) adalah komponen cerdas yang menggunakan teknologi **Machine Learning** untuk memprediksi kualitas udara di masa depan berdasarkan data historis. Sistem ini mendukung prediksi untuk dua jenis polutan utama: **PM2.5** dan **PM10**.
 
 ## 🚀 Fungsi Utama
-Komponen ini memberikan wawasan proaktif kepada pengguna mengenai tren kualitas udara selama 48 jam ke depan, sehingga pengguna dapat merencanakan aktivitas luar ruangan dengan lebih aman.
+Komponen ini memberikan wawasan proaktif kepada pengguna mengenai tren kualitas udara selama 48 jam ke depan, sehingga pengguna dapat merencanakan aktivitas luar ruangan dengan lebih aman. Model telah dioptimalkan secara terpisah untuk karakteristik penyebaran partikel PM2.5 dan PM10.
 
 ## 🛠️ Cara Kerja Teknis
 Fitur ini beroperasi melalui beberapa tahapan integrasi data:
 
-1.  **Pengambilan Data Historis**: Mengambil data kualitas udara (PM2.5) dari backend selama 72 jam terakhir.
-2.  **Analisis Machine Learning**: Data tersebut dikirim ke API Machine Learning khusus (`VITE_ML_API_URL`) untuk diproses menggunakan model prediksi.
-3.  **Visualisasi Real-time**: Hasil prediksi ditampilkan dalam bentuk grafik garis interaktif dan ringkasan waktu yang mudah dibaca.
+1.  **Pengambilan Data Historis**: Mengambil data kualitas udara (PM2.5 atau PM10) dari backend selama 72 jam terakhir.
+2.  **Analisis Machine Learning**: Data dikirim ke API Machine Learning (`app_simple.py`) yang secara dinamis memuat model yang sesuai (`.pkl`) berdasarkan jenis polutan yang diminta.
+3.  **Feature Engineering**: API menghitung *lag features* dan *rolling averages* secara real-time sebelum melakukan inferensi.
+4.  **Visualisasi Real-time**: Hasil prediksi ditampilkan dalam bentuk grafik garis interaktif dan ringkasan waktu.
 
 ## 📊 Fitur Visual & Antarmuka
+- **Grafik Tren Interaktif**: Menampilkan naik turunnya nilai AQI selama 48 jam.
+- **Timely Insight**: Ringkasan kondisi udara (Sekarang, +6 Jam, dst.) dengan status kualitas udara.
+- **Sistem Kode Warna**: 
+  - 🟢 **Baik (0-50)**
+  - 🟡 **Sedang (51-100)**
+  - 🟠 **Tidak Sehat (Sensitif) (101-150)**
+  - 🔴 **Tidak Sehat (151-200)**
+  - 🟣 **Sangat Tidak Sehat / Berbahaya (>200)**
 
-### 1. Grafik Tren Interaktif
-*   **Visualisasi Garis**: Menampilkan naik turunnya nilai AQI selama 48 jam.
-*   **Tooltip Detail**: Saat kursor diarahkan ke grafik, muncul informasi spesifik mengenai waktu dan prediksi nilai AQI pada jam tersebut.
-*   **Indikator Statistik**: Menampilkan nilai **AQI Saat Ini**, **Rata-rata**, dan **Puncak (Peak)** prediksi.
+## ⚙️ Cara Menjalankan Secara Lokal
+Untuk mengaktifkan fitur prediksi di komputer lokal:
 
-### 2. Timely Insight (Ringkasan Waktu)
-Menampilkan ringkasan kondisi udara pada interval waktu tertentu:
-*   **Sekarang (Now)**
-*   **+6 Jam** hingga **+48 Jam**
-Setiap interval dilengkapi dengan status kualitas udara (Baik, Sedang, Tidak Sehat, dll.) dan kode warna yang sesuai.
-
-### 3. Sistem Kode Warna (Standardisasi)
-Warna berubah secara dinamis berdasarkan tingkat polusi:
-*   🟢 **Hijau (0-50)**: Baik
-*   🟡 **Kuning (51-100)**: Sedang
-*   🟠 **Oranye (101-150)**: Tidak Sehat (Sensitif)
-*   🔴 **Merah (151-200)**: Tidak Sehat
-*   🟣 **Ungu (>200)**: Sangat Tidak Sehat / Berbahaya
-
-
-## ⚙️ Cara Menjalankan Machine Learning
-Untuk mengaktifkan fitur prediksi, Anda perlu menjalankan server ML Python (FastAPI):
-
-1.  **Buka Terminal** dan arahkan ke folder machine learning:
+1.  **Arahkan ke folder machine learning**:
     ```bash
-    cd "machine learning/api"
+    cd "machine learning"
     ```
-2.  **Instal Library** yang dibutuhkan (jika belum):
+2.  **Instal Library** yang dibutuhkan:
     ```bash
     pip install fastapi uvicorn joblib numpy pandas xgboost pydantic
     ```
 3.  **Jalankan Server**:
     ```bash
-    uvicorn app_simple:app --host 0.0.0.0 --port 8001 --reload
+    python app_simple.py
     ```
     *Server akan berjalan di `http://localhost:8001`*
 
-## � Integrasi API (Frontend)
-Frontend melakukan dua tahap pemanggilan API untuk menghasilkan prediksi:
+## 🌐 Deployment ke Vercel
+Untuk men-deploy API Machine Learning ini ke Vercel agar dapat diakses secara publik:
 
-### 1. Mengambil Data Historis (Backend Utama)
-Frontend mengambil data PM2.5 dari backend utama sebagai input untuk model ML.
-*   **Endpoint**: `/weather/analytics/hourly`
-*   **Method**: `GET`
-*   **Query Params**: `city={nama_kota}&hours=72`
-*   **Headers**: `Authorization: Bearer <token>`
+### 1. Persiapan File
+Pastikan file berikut ada di root folder `machine learning/`:
+- `app_simple.py` (File utama FastAPI)
+- `pm25_pipeline_enhanced.pkl` & `pm10_pipeline_enhanced.pkl` (Model yang sudah dilatih)
+- `requirements.txt` (Daftar library)
+- `vercel.json` (Konfigurasi deployment)
 
-### 2. Melakukan Prediksi (ML API)
-Data historis dikirim ke server ML untuk diproses.
-*   **Endpoint**: `http://localhost:8001/predict`
+### 2. Isi `vercel.json`
+Buat file `vercel.json` dengan isi:
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/app_simple.py" }
+  ]
+}
+```
+
+### 3. Langkah Deployment
+1. Install Vercel CLI: `npm install -g vercel`
+2. Jalankan perintah `vercel` di dalam folder `machine learning`.
+3. Ikuti instruksi di terminal (pilih "Yes" untuk semua default).
+4. Setelah selesai, Anda akan mendapatkan URL publik (misal: `https://hawa-ml-api.vercel.app`).
+
+## 🔌 Integrasi API
+API menerima request POST dengan struktur berikut:
+
+*   **Endpoint**: `/predict`
 *   **Method**: `POST`
-*   **Body**: 
+*   **Payload**:
     ```json
-    [
-      { "timestamp": "2024-01-01T00:00:00", "pm25_density": 25.5 },
-      ...
-    ]
+    {
+      "pollutant": "pm25",
+      "history": [
+        { "timestamp": "2024-01-01T00:00:00", "pm25_density": 25.5, "pm10_density": 40.2 },
+        ...
+      ]
+    }
     ```
-*   **Output**: Array berisi 48 objek prediksi (timestamp & predicted_aqi).
+*   **Output**: Array berisi 48 objek prediksi (`timestamp` & `predicted_aqi`).
 
-## �💻 Lokasi File
-*   Komponen UI: [AQIPrediction.jsx](file:///c:/Users/user/Downloads/Hawa/hawa-fe-sl2/src/components/AQIPrediction.jsx)
-*   Integrasi Dashboard: [Dashboard.jsx](file:///c:/Users/user/Downloads/Hawa/hawa-fe-sl2/src/pages/Dashboard.jsx)
-*   Server ML: [app_simple.py](file:///c:/Users/user/Downloads/Hawa/machine%20learning/api/app_simple.py)
+## � Lokasi File Utama
+*   **API Server**: [app_simple.py](file:///c:/Users/user/Downloads/Hawa/machine%20learning/app_simple.py)
+*   **Model PM2.5**: [pm25_pipeline_enhanced.pkl](file:///c:/Users/user/Downloads/Hawa/machine%20learning/pm25_pipeline_enhanced.pkl)
+*   **Model PM10**: [pm10_pipeline_enhanced.pkl](file:///c:/Users/user/Downloads/Hawa/machine%20learning/pm10_pipeline_enhanced.pkl)
