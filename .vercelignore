@@ -1,0 +1,13 @@
+# Ignore everything outside ML API
+hawa-be-sl2/
+hawa-fe-sl2/
+
+# Common large/unused artifacts
+**/node_modules/
+**/__pycache__/
+**/*.ipynb
+**/.ipynb_checkpoints/
+
+# Local data/artifacts not needed for runtime
+machine learning/data_aqi.csv
+machine learning/Test API/
