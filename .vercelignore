@@ -9,5 +9,17 @@ hawa-fe-sl2/
 **/.ipynb_checkpoints/
 
 # Local data/artifacts not needed for runtime
-machine learning/data_aqi.csv
-machine learning/Test API/
+data_aqi.csv
+Test API/
+
+# Ignore model files (will be downloaded from external source)
+*.pkl
+*.h5
+*.pt
+*.pth
+*.joblib
+*.model
+
+# Ignore README
+README.md
+DEPLOY_INSTRUCTIONS.md

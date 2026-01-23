@@ -2,6 +2,8 @@ import joblib
 import numpy as np
 import pandas as pd
 import warnings
+import os
+import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query
@@ -11,6 +13,12 @@ from typing import List, Optional, Dict
 
 # Suppress XGBoost version warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
+
+# Model URLs - GANTI DENGAN URL MODEL ANDA
+MODEL_URLS = {
+    "pm25": os.getenv("PM25_MODEL_URL", "https://github.com/AriAnanta/Hawa-ML/releases/download/v1.0.0/pm25_pipeline_enhanced.pkl"),
+    "pm10": os.getenv("PM10_MODEL_URL", "https://github.com/AriAnanta/Hawa-ML/releases/download/v1.0.0/pm10_pipeline_enhanced.pkl")
+}
 
 app = FastAPI(
     title="AQI Prediction API (PM2.5 & PM10)",
@@ -45,15 +53,47 @@ Y_POINTS = np.array([0, 50, 100, 200, 300, 500])
 # Global storage for models and features
 pipelines = {}
 
+def download_model(url: str, local_path: Path) -> bool:
+    """Download model dari URL eksternal"""
+    try:
+        if local_path.exists():
+            print(f"Model sudah ada di {local_path}")
+            return True
+        
+        print(f"Downloading model dari {url}...")
+        response = requests.get(url, timeout=300)
+        response.raise_for_status()
+        
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(local_path, 'wb') as f:
+            f.write(response.content)
+        
+        print(f"Model berhasil didownload ke {local_path}")
+        return True
+    except Exception as e:
+        print(f"Error downloading model: {e}")
+        return False
+
 def load_pipelines():
     """Memuat semua pipeline model yang tersedia (PM2.5 dan PM10)"""
-    # File pkl sekarang berada di folder yang sama dengan app_simple.py
-    base_path = Path(__file__).resolve().parent
+    # Gunakan /tmp untuk serverless environment
+    base_path = Path("/tmp") if os.getenv("VERCEL") else Path(__file__).resolve().parent
+    
     for p_type, config in POLLUTANT_CONFIG.items():
-        path = base_path / config["pipeline_file"]
-        if path.exists():
+        local_path = base_path / config["pipeline_file"]
+        
+        # Cek apakah file lokal ada, jika tidak download dari URL
+        if not local_path.exists():
+            model_url = MODEL_URLS.get(p_type)
+            if model_url and model_url != f"YOUR_{p_type.upper()}_MODEL_URL_HERE":
+                if not download_model(model_url, local_path):
+                    print(f"Gagal download model {p_type}, mencoba load dari local...")
+                    # Fallback ke folder lokal jika download gagal
+                    local_path = Path(__file__).resolve().parent / config["pipeline_file"]
+        
+        if local_path.exists():
             try:
-                data = joblib.load(path)
+                data = joblib.load(local_path)
                 pipelines[p_type] = {
                     "model": data["model"],
                     "features": data["features"],
@@ -65,7 +105,8 @@ def load_pipelines():
             except Exception as e:
                 print(f"Gagal memuat model {p_type}: {e}")
         else:
-            print(f"Peringatan: File pipeline {path} tidak ditemukan.")
+            print(f"Peringatan: File pipeline {local_path} tidak ditemukan dan tidak bisa didownload.")
+
 
 # Load models on startup
 load_pipelines()
