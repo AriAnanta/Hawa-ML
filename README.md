@@ -1,89 +1,108 @@
-# Dokumentasi Fitur Prediksi AQI (ISPU) 48 Jam (PM2.5 & PM10)
+# Dokumentasi ML API - Hawa Project
 
-Fitur Prediksi AQI (Air Quality Index) atau ISPU (Indeks Standar Pencemar Udara) adalah komponen cerdas yang menggunakan teknologi **Machine Learning** untuk memprediksi kualitas udara di masa depan berdasarkan data historis. Sistem ini mendukung prediksi untuk dua jenis polutan utama: **PM2.5** dan **PM10**.
+## Endpoint API
 
-## 🚀 Fungsi Utama
-Komponen ini memberikan wawasan proaktif kepada pengguna mengenai tren kualitas udara selama 48 jam ke depan, sehingga pengguna dapat merencanakan aktivitas luar ruangan dengan lebih aman. Model telah dioptimalkan secara terpisah untuk karakteristik penyebaran partikel PM2.5 dan PM10.
+### 1. Prediksi AQI 48 Jam (`/predict`)
+Melakukan peramalan nilai AQI untuk 48 jam ke depan berdasarkan data historis.
 
-## 🛠️ Cara Kerja Teknis
-Fitur ini beroperasi melalui beberapa tahapan integrasi data:
-
-1.  **Pengambilan Data Historis**: Mengambil data kualitas udara (PM2.5 atau PM10) dari backend selama 72 jam terakhir.
-2.  **Analisis Machine Learning**: Data dikirim ke API Machine Learning (`app_simple.py`) yang secara dinamis memuat model yang sesuai (`.pkl`) berdasarkan jenis polutan yang diminta.
-3.  **Feature Engineering**: API menghitung *lag features* dan *rolling averages* secara real-time sebelum melakukan inferensi.
-4.  **Visualisasi Real-time**: Hasil prediksi ditampilkan dalam bentuk grafik garis interaktif dan ringkasan waktu.
-
-## 📊 Fitur Visual & Antarmuka
-- **Grafik Tren Interaktif**: Menampilkan naik turunnya nilai AQI selama 48 jam.
-- **Timely Insight**: Ringkasan kondisi udara (Sekarang, +6 Jam, dst.) dengan status kualitas udara.
-- **Sistem Kode Warna**: 
-  - 🟢 **Baik (0-50)**
-  - 🟡 **Sedang (51-100)**
-  - 🟠 **Tidak Sehat (Sensitif) (101-150)**
-  - 🔴 **Tidak Sehat (151-200)**
-  - 🟣 **Sangat Tidak Sehat / Berbahaya (>200)**
-
-## ⚙️ Cara Menjalankan Secara Lokal
-Untuk mengaktifkan fitur prediksi di komputer lokal:
-
-1.  **Arahkan ke folder machine learning**:
-    ```bash
-    cd "ml"
-    ```
-2.  **Instal Library** yang dibutuhkan:
-    ```bash
-    pip install fastapi uvicorn joblib numpy pandas xgboost pydantic
-    ```
-3.  **Jalankan Server**:
-    ```bash
-    python app_simple.py
-    ```
-    *Server akan berjalan di `http://localhost:8001`*
-
-## 🌐 Deployment ke Vercel
-Untuk men-deploy API Machine Learning ini ke Vercel agar dapat diakses secara publik:
-
-### 1. Persiapan File
-Pastikan file berikut ada di root folder `ml/`:
-- `app_simple.py` (File utama FastAPI)
-- `pm25_pipeline_enhanced.pkl` & `pm10_pipeline_enhanced.pkl` (Model yang sudah dilatih)
-- `requirements.txt` (Daftar library)
-- `vercel.json` (Konfigurasi deployment)
-
-### 2. Isi `vercel.json`
-Buat file `vercel.json` dengan isi:
+- **Method**: `POST`
+- **Payload**:
 ```json
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/app_simple.py" }
+  "pollutant": "pm25",
+  "history": [
+    {"timestamp": "2024-05-01T00:00:00", "pm25_density": 18.2},
+    {"timestamp": "2024-05-01T01:00:00", "pm25_density": 19.1},
+    {"timestamp": "2024-05-01T02:00:00", "pm25_density": 20.3},
+    {"timestamp": "2024-05-01T03:00:00", "pm25_density": 22.0},
+    {"timestamp": "2024-05-01T04:00:00", "pm25_density": 21.5},
+    {"timestamp": "2024-05-01T05:00:00", "pm25_density": 23.4},
+    {"timestamp": "2024-05-01T06:00:00", "pm25_density": 24.0},
+    {"timestamp": "2024-05-01T07:00:00", "pm25_density": 25.1},
+    {"timestamp": "2024-05-01T08:00:00", "pm25_density": 26.8},
+    {"timestamp": "2024-05-01T09:00:00", "pm25_density": 27.4},
+    {"timestamp": "2024-05-01T10:00:00", "pm25_density": 28.7},
+    {"timestamp": "2024-05-01T11:00:00", "pm25_density": 29.9},
+    {"timestamp": "2024-05-01T12:00:00", "pm25_density": 31.2},
+    {"timestamp": "2024-05-01T13:00:00", "pm25_density": 32.1},
+    {"timestamp": "2024-05-01T14:00:00", "pm25_density": 33.5},
+    {"timestamp": "2024-05-01T15:00:00", "pm25_density": 34.2},
+    {"timestamp": "2024-05-01T16:00:00", "pm25_density": 33.8},
+    {"timestamp": "2024-05-01T17:00:00", "pm25_density": 32.6},
+    {"timestamp": "2024-05-01T18:00:00", "pm25_density": 31.0},
+    {"timestamp": "2024-05-01T19:00:00", "pm25_density": 29.4},
+    {"timestamp": "2024-05-01T20:00:00", "pm25_density": 27.9},
+    {"timestamp": "2024-05-01T21:00:00", "pm25_density": 26.2},
+    {"timestamp": "2024-05-01T22:00:00", "pm25_density": 24.6},
+    {"timestamp": "2024-05-01T23:00:00", "pm25_density": 23.3},
+    {"timestamp": "2024-05-02T00:00:00", "pm25_density": 22.1},
+    {"timestamp": "2024-05-02T01:00:00", "pm25_density": 21.5},
+    {"timestamp": "2024-05-02T02:00:00", "pm25_density": 20.8},
+    {"timestamp": "2024-05-02T03:00:00", "pm25_density": 19.9},
+    {"timestamp": "2024-05-02T04:00:00", "pm25_density": 19.2},
+    {"timestamp": "2024-05-02T05:00:00", "pm25_density": 18.7},
+    {"timestamp": "2024-05-02T06:00:00", "pm25_density": 19.5},
+    {"timestamp": "2024-05-02T07:00:00", "pm25_density": 21.3},
+    {"timestamp": "2024-05-02T08:00:00", "pm25_density": 23.6},
+    {"timestamp": "2024-05-02T09:00:00", "pm25_density": 25.9},
+    {"timestamp": "2024-05-02T10:00:00", "pm25_density": 28.2},
+    {"timestamp": "2024-05-02T11:00:00", "pm25_density": 30.5},
+    {"timestamp": "2024-05-02T12:00:00", "pm25_density": 32.8},
+    {"timestamp": "2024-05-02T13:00:00", "pm25_density": 34.1},
+    {"timestamp": "2024-05-02T14:00:00", "pm25_density": 35.4},
+    {"timestamp": "2024-05-02T15:00:00", "pm25_density": 36.2},
+    {"timestamp": "2024-05-02T16:00:00", "pm25_density": 35.8},
+    {"timestamp": "2024-05-02T17:00:00", "pm25_density": 34.5},
+    {"timestamp": "2024-05-02T18:00:00", "pm25_density": 32.8},
+    {"timestamp": "2024-05-02T19:00:00", "pm25_density": 30.9},
+    {"timestamp": "2024-05-02T20:00:00", "pm25_density": 28.7},
+    {"timestamp": "2024-05-02T21:00:00", "pm25_density": 26.8},
+    {"timestamp": "2024-05-02T22:00:00", "pm25_density": 25.2},
+    {"timestamp": "2024-05-02T23:00:00", "pm25_density": 23.9},
+    {"timestamp": "2024-05-03T00:00:00", "pm25_density": 22.7},
+    {"timestamp": "2024-05-03T01:00:00", "pm25_density": 21.8}
   ]
+}
+
+```
+- **Catatan**: `pollutant` bisa berisi `"pm25"` atau `"pm10"`.
+
+### 2. IoT Data Imputation (`/impute`)
+Mendeteksi anomali pada data sensor dan melakukan pengisian data otomatis (imputation) jika data rusak atau tidak wajar.
+
+- **Method**: `POST`
+- **Payload**:
+```json
+{
+  "pm25": 500.0,
+  "pm10": 60.0,
+  "temperature": 28.5,
+  "humidity": 65.0,
+  "pressure": 1013.0,
+  "timestamp": "2026-02-02T10:00:00"
 }
 ```
 
-### 3. Langkah Deployment
-1. Install Vercel CLI: `npm install -g vercel`
-2. Jalankan perintah `vercel` di dalam folder `machine learning`.
-3. Ikuti instruksi di terminal (pilih "Yes" untuk semua default).
-4. Setelah selesai, Anda akan mendapatkan URL publik (misal: `https://hawa-ml-api.vercel.app`).
+---
 
-## 🔌 Integrasi API
-API menerima request POST dengan struktur berikut:
+## 🛠️ Arsitektur Model
+Model ini tidak lagi menggunakan file `.pkl` besar untuk menghemat memori di Vercel:
+1. **Pure NumPy Inference**: Logika prediksi (Ridge Regression & StandardScaler) diimplementasikan manual menggunakan NumPy.
+2. **JSON Parameters**: Parameter model disimpan di `model_params.json` (hanya ~10KB).
+3. **Optimasi Dependensi**: Menghapus `scikit-learn` dan `joblib` untuk memperkecil ukuran bundle hingga >80%.
 
-*   **Endpoint**: `/predict`
-*   **Method**: `POST`
-*   **Payload**:
-    ```json
-    {
-      "pollutant": "pm25",
-      "history": [
-        { "timestamp": "2024-01-01T00:00:00", "pm25_density": 25.5, "pm10_density": 40.2 },
-        ...
-      ]
-    }
-    ```
-*   **Output**: Array berisi 48 objek prediksi (`timestamp` & `predicted_aqi`).
+---
 
-## � Lokasi File Utama
-*   **API Server**: [app_simple.py](file:///c:/Users/user/Downloads/Hawa/machine%20learning/app_simple.py)
-*   **Model PM2.5**: [pm25_pipeline_enhanced.pkl](file:///c:/Users/user/Downloads/Hawa/machine%20learning/pm25_pipeline_enhanced.pkl)
-*   **Model PM10**: [pm10_pipeline_enhanced.pkl](file:///c:/Users/user/Downloads/Hawa/machine%20learning/pm10_pipeline_enhanced.pkl)
+## Running Lokal
+
+1. **Instalasi**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Menjalankan Server**:
+   ```bash
+   python app_simple.py
+   ```
+   Akses dokumentasi interaktif di: `http://localhost:8001/docs`
+
+---
