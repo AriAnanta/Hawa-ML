@@ -10,7 +10,9 @@ models/
 
 # Ignore large data files
 *.csv
-*.json
+# *.json - allow model_params.json
+data_aqi.json
+sample_*.json
 
 # Ignore model files
 *.pkl
