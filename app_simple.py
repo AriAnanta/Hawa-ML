@@ -14,7 +14,7 @@ from typing import List, Optional, Dict
 # Suppress XGBoost version warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
 
-# Model URLs - GANTI DENGAN URL MODEL ANDA
+# Model URLs - UPDATE DENGAN URL DARI GITHUB RELEASES ANDA
 MODEL_URLS = {
     "pm25": os.getenv("PM25_MODEL_URL", "https://github.com/AriAnanta/Hawa-ML/releases/download/v1.0.0/pm25_pipeline_best_model.pkl"),
     "pm10": os.getenv("PM10_MODEL_URL", "https://github.com/AriAnanta/Hawa-ML/releases/download/v1.0.0/pm10_pipeline_best_model.pkl"),

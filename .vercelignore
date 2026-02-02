@@ -1,18 +1,18 @@
 # Ignore everything outside ML API
 hawa-be-sl2/
 hawa-fe-sl2/
+Test API/
+models/
 
-# Common large/unused artifacts
-**/node_modules/
-**/__pycache__/
+# Ignore all notebooks
 **/*.ipynb
 **/.ipynb_checkpoints/
 
-# Local data/artifacts not needed for runtime
-data_aqi.csv
-Test API/
+# Ignore large data files
+*.csv
+*.json
 
-# Ignore model files (will be downloaded from external source)
+# Ignore model files
 *.pkl
 *.h5
 *.pt
@@ -20,6 +20,20 @@ Test API/
 *.joblib
 *.model
 
-# Ignore README
-README.md
-DEPLOY_INSTRUCTIONS.md
+# Ignore documentation and scripts
+*.md
+*.sh
+*.bat
+LICENSE
+.gitignore
+
+# Ignore python artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.env
+.venv
+.vscode/
+
+
