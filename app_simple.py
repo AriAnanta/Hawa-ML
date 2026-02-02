@@ -1,4 +1,4 @@
-import joblib
+import json
 import numpy as np
 import pandas as pd
 import warnings
@@ -11,15 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 
-# Suppress XGBoost version warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
-
-# Model URLs - UPDATE DENGAN URL DARI GITHUB RELEASES ANDA
-MODEL_URLS = {
-    "pm25": os.getenv("PM25_MODEL_URL", "https://github.com/AriAnanta/Hawa-ML/releases/download/v1.0.0/pm25_pipeline_best_model.pkl"),
-    "pm10": os.getenv("PM10_MODEL_URL", "https://github.com/AriAnanta/Hawa-ML/releases/download/v1.0.0/pm10_pipeline_best_model.pkl"),
-    "imputer": os.getenv("IMPUTER_MODEL_URL", "https://github.com/AriAnanta/Hawa-ML/releases/download/v1.0.0/air_quality_imputer.pkl")
-}
+# Suppress warnings
+warnings.filterwarnings("ignore")
 
 app = FastAPI(
     title="AQI Prediction API (PM2.5 & PM10)",
@@ -47,16 +40,9 @@ POLLUTANT_CONFIG = {
         "pipeline_file": "pm10_pipeline_best_model.pkl",
         "density_col": "pm10_density",
         "x_points": np.array([0.0, 50, 150, 350, 420, 10000]),
-    },
-    "imputer": {
-        "pipeline_file": "air_quality_imputer.pkl" 
     }
 }
 Y_POINTS = np.array([0, 50, 100, 200, 300, 500])
-
-# Global storage for models and features
-pipelines = {}
-imputer = None  # Global imputer object
 
 # ========================================
 # ISPU CALCULATOR FOR IMPUTATION
@@ -79,241 +65,138 @@ BREAKPOINTS = {
 }
 
 def hitung_ispu(konsentrasi, polutan='PM25'):
-    """
-    Menghitung ISPU menggunakan interpolasi linear.
-    
-    Rumus: ISPU = [(Iu - Il) / (Xu - Xl)] × (Xx - Xl) + Il
-    """
-    if konsentrasi is None or pd.isna(konsentrasi):
-        return None
-    
-    if konsentrasi < 0:
-        return 0.0
-    
+    """Menghitung ISPU menggunakan interpolasi linear."""
+    if konsentrasi is None or pd.isna(konsentrasi): return None
+    if konsentrasi < 0: return 0.0
     breakpoints = BREAKPOINTS[polutan]
-    
     for bp in breakpoints:
         Xl, Xu, Il, Iu = bp
         if Xl <= konsentrasi <= Xu:
             ispu = ((Iu - Il) / (Xu - Xl)) * (konsentrasi - Xl) + Il
             return round(ispu, 2)
-    
     return 500.0
 
 def detect_anomaly(value, mean, std, iqr_low, iqr_high, method='combined'):
-    """
-    Deteksi apakah nilai adalah anomali/tidak normal
-    
-    Parameters:
-    - value: nilai yang akan dicek
-    - mean, std: untuk Z-score method
-    - iqr_low, iqr_high: batas IQR
-    - method: 'zscore', 'iqr', atau 'combined'
-    
-    Returns:
-    - True jika anomali, False jika normal
-    """
-    if pd.isna(value) or value < 0:
-        return True
-    
-    # Z-score method (nilai > 3 std dari mean)
+    """Deteksi apakah nilai adalah anomali/tidak normal"""
+    if pd.isna(value) or value < 0: return True
     z_score = abs((value - mean) / std) if std > 0 else 0
     is_zscore_anomaly = z_score > 3
-    
-    # IQR method (nilai di luar batas IQR)
     is_iqr_anomaly = (value < iqr_low) or (value > iqr_high)
+    if method == 'zscore': return is_zscore_anomaly
+    elif method == 'iqr': return is_iqr_anomaly
+    else: return is_zscore_anomaly or is_iqr_anomaly
+
+# Global storage for models
+model_params = {}
+pipelines = {}
+imputer = None
+
+class RidgeLite:
+    """Implementasi Ridge Regression tanpa scikit-learn"""
+    def __init__(self, coef, intercept):
+        self.coef = np.array(coef)
+        self.intercept = intercept
     
-    if method == 'zscore':
-        return is_zscore_anomaly
-    elif method == 'iqr':
-        return is_iqr_anomaly
-    else:  # combined
-        return is_zscore_anomaly or is_iqr_anomaly
+    def predict(self, X):
+        # X can be DataFrame or numpy array
+        if isinstance(X, pd.DataFrame):
+            X = X.values
+        return np.dot(X, self.coef) + self.intercept
+
+class ScalerLite:
+    """Implementasi StandardScaler tanpa scikit-learn"""
+    def __init__(self, mean, scale):
+        self.mean = np.array(mean)
+        self.scale = np.array(scale)
+    
+    def transform(self, X):
+        if isinstance(X, pd.DataFrame):
+            X = X.values
+        return (X - self.mean) / self.scale
 
 class AirQualityImputer:
-    """
-    Complete system untuk imputation data kualitas udara
-    """
-    def __init__(self, pm25_model, pm25_scaler, pm10_model, pm10_scaler, 
-                 pm25_stats, pm10_stats):
-        self.pm25_model = pm25_model
-        self.pm25_scaler = pm25_scaler
-        self.pm10_model = pm10_model
-        self.pm10_scaler = pm10_scaler
-        self.pm25_stats = pm25_stats
-        self.pm10_stats = pm10_stats
+    """Complete system untuk imputation data kualitas udara (Tanpa sklearn)"""
+    def __init__(self, params, stats):
+        self.pm25_model = RidgeLite(params['pm25_model']['coef'], params['pm25_model']['intercept'])
+        self.pm25_scaler = ScalerLite(params['pm25_scaler']['mean'], params['pm25_scaler']['scale'])
+        self.pm10_model = RidgeLite(params['pm10_model']['coef'], params['pm10_model']['intercept'])
+        self.pm10_scaler = ScalerLite(params['pm10_scaler']['mean'], params['pm10_scaler']['scale'])
+        self.pm25_stats = stats['pm25_stats']
+        self.pm10_stats = stats['pm10_stats']
     
     def is_anomaly(self, value, pollutant='pm25'):
-        """Check if value is anomaly"""
-        if pollutant == 'pm25':
-            stats = self.pm25_stats
-        else:
-            stats = self.pm10_stats
-        
+        stats = self.pm25_stats if pollutant == 'pm25' else self.pm10_stats
         return detect_anomaly(value, stats['mean'], stats['std'],
                             stats['iqr_low'], stats['iqr_high'])
     
     def impute_pm25(self, pm10, temperature, humidity, pressure):
-        """Impute PM2.5 value"""
-        input_data = pd.DataFrame([{
-            'pm10_density': pm10,
-            'temperature': temperature,
-            'humidity': humidity,
-            'pressure': pressure
-        }])
-        
+        input_data = np.array([[pm10, temperature, humidity, pressure]])
         input_scaled = self.pm25_scaler.transform(input_data)
         predicted = self.pm25_model.predict(input_scaled)[0]
-        
-        # Ensure non-negative
         return max(0.0, predicted)
     
     def impute_pm10(self, pm25, temperature, humidity, pressure):
-        """Impute PM10 value"""
-        input_data = pd.DataFrame([{
-            'pm2.5_density': pm25,
-            'temperature': temperature,
-            'humidity': humidity,
-            'pressure': pressure
-        }])
-        
+        input_data = np.array([[pm25, temperature, humidity, pressure]])
         input_scaled = self.pm10_scaler.transform(input_data)
         predicted = self.pm10_model.predict(input_scaled)[0]
-        
-        # Ensure non-negative
         return max(0.0, predicted)
     
     def process_reading(self, pm25_raw, pm10_raw, temperature, humidity, pressure):
-        """
-        Process sensor reading dengan automatic imputation
-        
-        Returns:
-        - dict dengan pm25_final, pm10_final, dan status imputation
-        """
         result = {
-            'pm25_raw': pm25_raw,
-            'pm10_raw': pm10_raw,
-            'pm25_final': pm25_raw,
-            'pm10_final': pm10_raw,
-            'pm25_imputed': False,
-            'pm10_imputed': False,
-            'pm25_status': 'normal',
-            'pm10_status': 'normal'
+            'pm25_raw': pm25_raw, 'pm10_raw': pm10_raw,
+            'pm25_final': pm25_raw, 'pm10_final': pm10_raw,
+            'pm25_imputed': False, 'pm10_imputed': False,
+            'pm25_status': 'normal', 'pm10_status': 'normal'
         }
-        
         pm25_is_anomaly = self.is_anomaly(pm25_raw, 'pm25')
         pm10_is_anomaly = self.is_anomaly(pm10_raw, 'pm10')
         
-        # Case 1: Both anomaly - use historical average or both imputation
         if pm25_is_anomaly and pm10_is_anomaly:
-            result['pm25_final'] = self.pm25_stats['mean']
-            result['pm10_final'] = self.pm10_stats['mean']
-            result['pm25_imputed'] = True
-            result['pm10_imputed'] = True
-            result['pm25_status'] = 'anomaly_both_bad'
-            result['pm10_status'] = 'anomaly_both_bad'
-        
-        # Case 2: PM2.5 anomaly, PM10 OK
-        elif pm25_is_anomaly and not pm10_is_anomaly:
-            result['pm25_final'] = self.impute_pm25(pm10_raw, temperature, humidity, pressure)
-            result['pm25_imputed'] = True
-            result['pm25_status'] = 'anomaly_imputed'
-        
-        # Case 3: PM10 anomaly, PM2.5 OK
-        elif not pm25_is_anomaly and pm10_is_anomaly:
-            result['pm10_final'] = self.impute_pm10(pm25_raw, temperature, humidity, pressure)
-            result['pm10_imputed'] = True
-            result['pm10_status'] = 'anomaly_imputed'
-        
-        # Case 4: Both normal
-        # Do nothing, use original values
-        
+            result.update({'pm25_final': self.pm25_stats['mean'], 'pm10_final': self.pm10_stats['mean'],
+                          'pm25_imputed': True, 'pm10_imputed': True,
+                          'pm25_status': 'anomaly_both_bad', 'pm10_status': 'anomaly_both_bad'})
+        elif pm25_is_anomaly:
+            result.update({'pm25_final': self.impute_pm25(pm10_raw, temperature, humidity, pressure),
+                          'pm25_imputed': True, 'pm25_status': 'anomaly_imputed'})
+        elif pm10_is_anomaly:
+            result.update({'pm10_final': self.impute_pm10(pm25_raw, temperature, humidity, pressure),
+                          'pm10_imputed': True, 'pm10_status': 'anomaly_imputed'})
         return result
 
-def download_model(url: str, local_path: Path) -> bool:
-    """Download model dari URL eksternal"""
-    try:
-        if local_path.exists():
-            print(f"Model sudah ada di {local_path}")
-            return True
-        
-        print(f"Downloading model dari {url}...")
-        response = requests.get(url, timeout=300)
-        response.raise_for_status()
-        
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(local_path, 'wb') as f:
-            f.write(response.content)
-        
-        print(f"Model berhasil didownload ke {local_path}")
-        return True
-    except Exception as e:
-        print(f"Error downloading model: {e}")
-        return False
+def load_models():
+    """Load model parameters from JSON"""
+    global model_params, pipelines, imputer
+    
+    json_path = Path(__file__).resolve().parent / "model_params.json"
+    if not json_path.exists():
+        print("Error: model_params.json not found!")
+        return
 
-def load_pipelines():
-    """Memuat semua pipeline model yang tersedia (PM2.5, PM10, dan Imputer)"""
-    global imputer
+    with open(json_path, 'r') as f:
+        model_params = json.load(f)
     
-    # Gunakan /tmp untuk serverless environment
-    base_path = Path("/tmp") if os.getenv("VERCEL") else Path(__file__).resolve().parent
+    # Setup Prediction Pipelines
+    for p_type in ["pm25", "pm10"]:
+        key = f"{p_type}_pred"
+        if key in model_params:
+            data = model_params[key]
+            pipelines[p_type] = {
+                "model": RidgeLite(data["coef"], data["intercept"]),
+                "features": data["features"],
+                "lags": [1, 2, 3, 6, 12, 24, 48],
+                "rolls": [3, 6, 12, 24, 48],
+                "max_lookback": 49
+            }
+            print(f"Loaded {p_type} prediction model")
     
-    # Load prediction models (PM2.5 dan PM10)
-    for p_type, config in POLLUTANT_CONFIG.items():
-        local_path = base_path / config["pipeline_file"]
-        
-        # Cek apakah file lokal ada, jika tidak download dari URL
-        if not local_path.exists():
-            model_url = MODEL_URLS.get(p_type)
-            if model_url and model_url != f"YOUR_{p_type.upper()}_MODEL_URL_HERE":
-                if not download_model(model_url, local_path):
-                    print(f"Gagal download model {p_type}, mencoba load dari local...")
-                    # Fallback ke folder lokal jika download gagal
-                    local_path = Path(__file__).resolve().parent / config["pipeline_file"]
-        
-        if local_path.exists():
-            try:
-                data = joblib.load(local_path)
-                pipelines[p_type] = {
-                    "model": data["model"],
-                    "features": data["features"],
-                    "lags": data.get("lags", [1, 2, 3, 6, 12, 24, 48]),
-                    "rolls": data.get("rolls", [3, 6, 12, 24, 48]),
-                    "max_lookback": max(max(data.get("lags", [48])), max(data.get("rolls", [48]))) + 1
-                }
-                print(f"Berhasil memuat model {p_type} dari {config['pipeline_file']}")
-            except Exception as e:
-                print(f"Gagal memuat model {p_type}: {e}")
-        else:
-            print(f"Peringatan: File pipeline {local_path} tidak ditemukan dan tidak bisa didownload.")
-    
-    # Load imputation model
-    imputer_filename = "air_quality_imputer.pkl"
-    imputer_path = base_path / imputer_filename
-    
-    # Try to download if not exists
-    if not imputer_path.exists():
-        imputer_url = MODEL_URLS.get("imputer")
-        if imputer_url and "YOUR_" not in imputer_url:
-            if not download_model(imputer_url, imputer_path):
-                print(f"Gagal download imputer model, mencoba load dari local...")
-                imputer_path = Path(__file__).resolve().parent / imputer_filename
-    
-    # Load imputer
-    if imputer_path.exists():
-        try:
-            imputer = joblib.load(imputer_path)
-            print(f"✅ Berhasil memuat imputer model dari {imputer_filename}")
-        except Exception as e:
-            print(f"❌ Gagal memuat imputer model: {e}")
-            imputer = None
-    else:
-        print(f"⚠️  Peringatan: Imputer model tidak ditemukan. Endpoint imputation tidak akan tersedia.")
-        imputer = None
-
+    # Setup Imputer
+    if "imputer" in model_params and "anomaly_stats" in model_params:
+        imputer = AirQualityImputer(model_params["imputer"], model_params["anomaly_stats"])
+        print("Loaded imputer model")
 
 # Load models on startup
-load_pipelines()
+load_models()
+
 
 class HistoryItem(BaseModel):
     timestamp: datetime
