@@ -28,7 +28,7 @@ Untuk mengaktifkan fitur prediksi di komputer lokal:
 
 1.  **Arahkan ke folder machine learning**:
     ```bash
-    cd "machine learning"
+    cd "ml"
     ```
 2.  **Instal Library** yang dibutuhkan:
     ```bash
@@ -44,7 +44,7 @@ Untuk mengaktifkan fitur prediksi di komputer lokal:
 Untuk men-deploy API Machine Learning ini ke Vercel agar dapat diakses secara publik:
 
 ### 1. Persiapan File
-Pastikan file berikut ada di root folder `machine learning/`:
+Pastikan file berikut ada di root folder `ml/`:
 - `app_simple.py` (File utama FastAPI)
 - `pm25_pipeline_enhanced.pkl` & `pm10_pipeline_enhanced.pkl` (Model yang sudah dilatih)
 - `requirements.txt` (Daftar library)

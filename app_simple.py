@@ -38,12 +38,12 @@ app.add_middleware(
 # Configuration for Pollutants
 POLLUTANT_CONFIG = {
     "pm25": {
-        "pipeline_file": "pm25_pipeline_enhanced.pkl",
+        "pipeline_file": "pm25_pipeline_best_model.pkl",
         "density_col": "pm25_density",
         "x_points": np.array([0.0, 15.5, 55.4, 150.4, 250.4, 500.0]),
     },
     "pm10": {
-        "pipeline_file": "pm10_pipeline_enhanced.pkl",
+        "pipeline_file": "pm10_pipeline_best_model.pkl",
         "density_col": "pm10_density",
         "x_points": np.array([0.0, 50, 150, 350, 420, 10000]),
     }
