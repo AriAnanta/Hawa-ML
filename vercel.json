@@ -1,16 +1,15 @@
 {
   "version": 2,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "app_simple.py"
+      "src": "app_simple.py",
+      "use": "@vercel/python"
     }
   ],
-  "functions": {
-    "app_simple.py": {
-      "runtime": "@vercel/python",
-      "memory": 1024,
-      "maxDuration": 60
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app_simple.py"
     }
-  }
+  ]
 }
