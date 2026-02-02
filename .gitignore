@@ -1,1 +1,7 @@
 data_aqi.csv
+DEPLOYMENT_GUIDE.md
+INTEGRATION_BACKEND.md
+deploy.bat
+deploy.sh
+SUMMARY.md
+mmodels\deployment_example.py
