@@ -1,108 +1,94 @@
-# Dokumentasi ML API - Hawa Project
+# Hawa ISPU Prediction API
 
-## Endpoint API
+API ini digunakan untuk memprediksi Indeks Standar Pencemar Udara (ISPU) berdasarkan data historis sensor IoT. API ini menggunakan model ElasticNet yang telah dilatih dan diekspor ke format JSON agar ringan (tanpa dependensi `scikit-learn`).
 
-### 1. Prediksi AQI 48 Jam (`/predict`)
-Melakukan peramalan nilai AQI untuk 48 jam ke depan berdasarkan data historis.
+## Endpoint Utama
 
+### 1. Cek Status
+- **URL**: `/`
+- **Method**: `GET`
+- **Deskripsi**: Mengecek apakah API sedang aktif dan melihat versi model.
+
+### 2. Prediksi & Forecast 48 Jam
+- **URL**: `/predict`
 - **Method**: `POST`
-- **Payload**:
+- **Deskripsi**: Menerima data historis 24 jam terakhir dan mengembalikan prediksi ISPU untuk jam berikutnya serta estimasi forecast untuk 48 jam ke depan.
+
+## Contoh Input Data (JSON)
+
+API membutuhkan minimal **24 data historis** (24 jam) untuk menghitung fitur *rolling statistics*. Berikut adalah contoh data 24 jam lengkap yang bisa Anda copy-paste langsung:
+
 ```json
 {
-  "pollutant": "pm25",
   "history": [
-    {"timestamp": "2024-05-01T00:00:00", "pm25_density": 18.2},
-    {"timestamp": "2024-05-01T01:00:00", "pm25_density": 19.1},
-    {"timestamp": "2024-05-01T02:00:00", "pm25_density": 20.3},
-    {"timestamp": "2024-05-01T03:00:00", "pm25_density": 22.0},
-    {"timestamp": "2024-05-01T04:00:00", "pm25_density": 21.5},
-    {"timestamp": "2024-05-01T05:00:00", "pm25_density": 23.4},
-    {"timestamp": "2024-05-01T06:00:00", "pm25_density": 24.0},
-    {"timestamp": "2024-05-01T07:00:00", "pm25_density": 25.1},
-    {"timestamp": "2024-05-01T08:00:00", "pm25_density": 26.8},
-    {"timestamp": "2024-05-01T09:00:00", "pm25_density": 27.4},
-    {"timestamp": "2024-05-01T10:00:00", "pm25_density": 28.7},
-    {"timestamp": "2024-05-01T11:00:00", "pm25_density": 29.9},
-    {"timestamp": "2024-05-01T12:00:00", "pm25_density": 31.2},
-    {"timestamp": "2024-05-01T13:00:00", "pm25_density": 32.1},
-    {"timestamp": "2024-05-01T14:00:00", "pm25_density": 33.5},
-    {"timestamp": "2024-05-01T15:00:00", "pm25_density": 34.2},
-    {"timestamp": "2024-05-01T16:00:00", "pm25_density": 33.8},
-    {"timestamp": "2024-05-01T17:00:00", "pm25_density": 32.6},
-    {"timestamp": "2024-05-01T18:00:00", "pm25_density": 31.0},
-    {"timestamp": "2024-05-01T19:00:00", "pm25_density": 29.4},
-    {"timestamp": "2024-05-01T20:00:00", "pm25_density": 27.9},
-    {"timestamp": "2024-05-01T21:00:00", "pm25_density": 26.2},
-    {"timestamp": "2024-05-01T22:00:00", "pm25_density": 24.6},
-    {"timestamp": "2024-05-01T23:00:00", "pm25_density": 23.3},
-    {"timestamp": "2024-05-02T00:00:00", "pm25_density": 22.1},
-    {"timestamp": "2024-05-02T01:00:00", "pm25_density": 21.5},
-    {"timestamp": "2024-05-02T02:00:00", "pm25_density": 20.8},
-    {"timestamp": "2024-05-02T03:00:00", "pm25_density": 19.9},
-    {"timestamp": "2024-05-02T04:00:00", "pm25_density": 19.2},
-    {"timestamp": "2024-05-02T05:00:00", "pm25_density": 18.7},
-    {"timestamp": "2024-05-02T06:00:00", "pm25_density": 19.5},
-    {"timestamp": "2024-05-02T07:00:00", "pm25_density": 21.3},
-    {"timestamp": "2024-05-02T08:00:00", "pm25_density": 23.6},
-    {"timestamp": "2024-05-02T09:00:00", "pm25_density": 25.9},
-    {"timestamp": "2024-05-02T10:00:00", "pm25_density": 28.2},
-    {"timestamp": "2024-05-02T11:00:00", "pm25_density": 30.5},
-    {"timestamp": "2024-05-02T12:00:00", "pm25_density": 32.8},
-    {"timestamp": "2024-05-02T13:00:00", "pm25_density": 34.1},
-    {"timestamp": "2024-05-02T14:00:00", "pm25_density": 35.4},
-    {"timestamp": "2024-05-02T15:00:00", "pm25_density": 36.2},
-    {"timestamp": "2024-05-02T16:00:00", "pm25_density": 35.8},
-    {"timestamp": "2024-05-02T17:00:00", "pm25_density": 34.5},
-    {"timestamp": "2024-05-02T18:00:00", "pm25_density": 32.8},
-    {"timestamp": "2024-05-02T19:00:00", "pm25_density": 30.9},
-    {"timestamp": "2024-05-02T20:00:00", "pm25_density": 28.7},
-    {"timestamp": "2024-05-02T21:00:00", "pm25_density": 26.8},
-    {"timestamp": "2024-05-02T22:00:00", "pm25_density": 25.2},
-    {"timestamp": "2024-05-02T23:00:00", "pm25_density": 23.9},
-    {"timestamp": "2024-05-03T00:00:00", "pm25_density": 22.7},
-    {"timestamp": "2024-05-03T01:00:00", "pm25_density": 21.8}
+    {"timestamp": "2024-07-03T00:00:00", "PM2.5_ug_m3": 25.5, "PM10_ug_m3": 40.2, "aqi_ispu": 55.0},
+    {"timestamp": "2024-07-03T01:00:00", "PM2.5_ug_m3": 26.1, "PM10_ug_m3": 41.0, "aqi_ispu": 56.2},
+    {"timestamp": "2024-07-03T02:00:00", "PM2.5_ug_m3": 24.8, "PM10_ug_m3": 39.5, "aqi_ispu": 54.5},
+    {"timestamp": "2024-07-03T03:00:00", "PM2.5_ug_m3": 23.2, "PM10_ug_m3": 38.0, "aqi_ispu": 53.0},
+    {"timestamp": "2024-07-03T04:00:00", "PM2.5_ug_m3": 22.5, "PM10_ug_m3": 37.2, "aqi_ispu": 52.1},
+    {"timestamp": "2024-07-03T05:00:00", "PM2.5_ug_m3": 21.0, "PM10_ug_m3": 36.5, "aqi_ispu": 51.0},
+    {"timestamp": "2024-07-03T06:00:00", "PM2.5_ug_m3": 28.5, "PM10_ug_m3": 42.0, "aqi_ispu": 58.5},
+    {"timestamp": "2024-07-03T07:00:00", "PM2.5_ug_m3": 35.2, "PM10_ug_m3": 48.5, "aqi_ispu": 65.2},
+    {"timestamp": "2024-07-03T08:00:00", "PM2.5_ug_m3": 38.0, "PM10_ug_m3": 52.1, "aqi_ispu": 68.0},
+    {"timestamp": "2024-07-03T09:00:00", "PM2.5_ug_m3": 40.5, "PM10_ug_m3": 55.0, "aqi_ispu": 70.5},
+    {"timestamp": "2024-07-03T10:00:00", "PM2.5_ug_m3": 42.1, "PM10_ug_m3": 58.2, "aqi_ispu": 72.1},
+    {"timestamp": "2024-07-03T11:00:00", "PM2.5_ug_m3": 39.5, "PM10_ug_m3": 56.0, "aqi_ispu": 69.5},
+    {"timestamp": "2024-07-03T12:00:00", "PM2.5_ug_m3": 37.0, "PM10_ug_m3": 53.5, "aqi_ispu": 67.0},
+    {"timestamp": "2024-07-03T13:00:00", "PM2.5_ug_m3": 35.5, "PM10_ug_m3": 51.2, "aqi_ispu": 65.5},
+    {"timestamp": "2024-07-03T14:00:00", "PM2.5_ug_m3": 34.2, "PM10_ug_m3": 50.0, "aqi_ispu": 64.2},
+    {"timestamp": "2024-07-03T15:00:00", "PM2.5_ug_m3": 33.0, "PM10_ug_m3": 49.2, "aqi_ispu": 63.0},
+    {"timestamp": "2024-07-03T16:00:00", "PM2.5_ug_m3": 36.5, "PM10_ug_m3": 52.5, "aqi_ispu": 66.5},
+    {"timestamp": "2024-07-03T17:00:00", "PM2.5_ug_m3": 45.0, "PM10_ug_m3": 62.1, "aqi_ispu": 75.0},
+    {"timestamp": "2024-07-03T18:00:00", "PM2.5_ug_m3": 48.2, "PM10_ug_m3": 65.5, "aqi_ispu": 78.2},
+    {"timestamp": "2024-07-03T19:00:00", "PM2.5_ug_m3": 50.5, "PM10_ug_m3": 68.2, "aqi_ispu": 80.5},
+    {"timestamp": "2024-07-03T20:00:00", "PM2.5_ug_m3": 45.1, "PM10_ug_m3": 62.5, "aqi_ispu": 75.1},
+    {"timestamp": "2024-07-03T21:00:00", "PM2.5_ug_m3": 40.2, "PM10_ug_m3": 58.0, "aqi_ispu": 70.2},
+    {"timestamp": "2024-07-03T22:00:00", "PM2.5_ug_m3": 35.5, "PM10_ug_m3": 52.5, "aqi_ispu": 65.5},
+    {"timestamp": "2024-07-03T23:00:00", "PM2.5_ug_m3": 30.2, "PM10_ug_m3": 45.5, "aqi_ispu": 62.0}
   ]
 }
-
 ```
-- **Catatan**: `pollutant` bisa berisi `"pm25"` atau `"pm10"`.
 
-### 2. IoT Data Imputation (`/impute`)
-Mendeteksi anomali pada data sensor dan melakukan pengisian data otomatis (imputation) jika data rusak atau tidak wajar.
+## Contoh Output Data
 
-- **Method**: `POST`
-- **Payload**:
 ```json
 {
-  "pm25": 500.0,
-  "pm10": 60.0,
-  "temperature": 28.5,
-  "humidity": 65.0,
-  "pressure": 1013.0,
-  "timestamp": "2026-02-02T10:00:00"
+  "success": true,
+  "prediction": 63.45,
+  "forecast_48h": [
+    {
+      "hour": 1,
+      "timestamp": "2024-07-04T00:00:00",
+      "predicted_aqi": 63.45
+    },
+    {
+      "hour": 2,
+      "timestamp": "2024-07-04T01:00:00",
+      "predicted_aqi": 64.82
+    },
+    ...
+    {
+      "hour": 48,
+      "timestamp": "2024-07-05T23:00:00",
+      "predicted_aqi": 70.12
+    }
+  ],
+  "model_info": {
+    "type": "ElasticNet",
+    "features_used": 147
+  }
 }
 ```
 
----
+## Cara Menjalankan Secara Lokal
 
-## 🛠️ Arsitektur Model
-Model ini tidak lagi menggunakan file `.pkl` besar untuk menghemat memori di Vercel:
-1. **Pure NumPy Inference**: Logika prediksi (Ridge Regression & StandardScaler) diimplementasikan manual menggunakan NumPy.
-2. **JSON Parameters**: Parameter model disimpan di `model_params.json` (hanya ~10KB).
-3. **Optimasi Dependensi**: Menghapus `scikit-learn` dan `joblib` untuk memperkecil ukuran bundle hingga >80%.
-
----
-
-## Running Lokal
-
-1. **Instalasi**:
+1. Pastikan Python sudah terinstal.
+2. Instal dependensi:
    ```bash
-   pip install -r requirements.txt
+   pip install fastapi uvicorn pandas numpy
    ```
-2. **Menjalankan Server**:
+3. Jalankan server:
    ```bash
-   python app_simple.py
+   python ml/app_ispu.py
    ```
-   Akses dokumentasi interaktif di: `http://localhost:8001/docs`
-
----
+4. Akses di: `http://localhost:8005/docs`

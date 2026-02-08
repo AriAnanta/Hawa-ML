@@ -1,7 +1,24 @@
-data_aqi.csv
+# Models and Data
+*.pkl
+models/
+*.csv
+*.ipynb
+.ipynb_checkpoints/
+
+# Deployment & Documentation
 DEPLOYMENT_GUIDE.md
 INTEGRATION_BACKEND.md
+SUMMARY.md
 deploy.bat
 deploy.sh
-SUMMARY.md
-mmodels\deployment_example.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv/
+env/
+venv/
+build/
+dist/

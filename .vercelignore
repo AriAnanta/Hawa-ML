@@ -1,41 +1,25 @@
-# Ignore everything outside ML API
-hawa-be-sl2/
-hawa-fe-sl2/
-Test API/
+# Ignore heavy model files
+*.pkl
 models/
 
-# Ignore all notebooks
-**/*.ipynb
-**/.ipynb_checkpoints/
-
-# Ignore large data files
+# Ignore notebooks and data
+*.ipynb
 *.csv
-# *.json - allow model_params.json
-data_aqi.json
-sample_*.json
+.ipynb_checkpoints/
 
-# Ignore model files
-*.pkl
-*.h5
-*.pt
-*.pth
-*.joblib
-*.model
+# Ignore local scripts and documentation
+DEPLOYMENT_GUIDE.md
+INTEGRATION_BACKEND.md
+SUMMARY.md
+deploy.bat
+deploy.sh
+extract_to_json.py
+test_local_ispu.py
 
-# Ignore documentation and scripts
-*.md
-*.sh
-*.bat
-LICENSE
+# Ignore Python caches
+__pycache__/
+*.py[cod]
+
+# Ignore git
+.git
 .gitignore
-
-# Ignore python artifacts
-**/__pycache__/
-**/*.pyc
-**/*.pyo
-**/*.pyd
-.env
-.venv
-.vscode/
-
-
