@@ -52,6 +52,50 @@ model_config = None
 model = None
 scaler = None
 
+def pm10_to_ispu(pm10):
+    """
+    Konversi konsentrasi PM10 ke nilai ISPU (Permen LHK No. 14 Tahun 2020)
+    """
+    if pm10 <= 50:
+        return (50/50) * (pm10 - 0) + 0
+    elif pm10 <= 150:
+        return (50/100) * (pm10 - 50) + 50
+    elif pm10 <= 350:
+        return (100/200) * (pm10 - 150) + 100
+    elif pm10 <= 420:
+        return (100/70) * (pm10 - 350) + 200
+    elif pm10 <= 500:
+        return (100/80) * (pm10 - 420) + 300
+    else:
+        # Untuk nilai > 500, menggunakan ekstrapolasi linear sederhana
+        return (100/80) * (pm10 - 500) + 400
+
+def pm25_to_ispu(pm25):
+    """
+    Konversi konsentrasi PM2.5 ke nilai ISPU (Permen LHK No. 14 Tahun 2020)
+    """
+    if pm25 <= 15.5:
+        return (50/15.5) * (pm25 - 0) + 0
+    elif pm25 <= 55.4:
+        return (50/(55.4-15.5)) * (pm25 - 15.5) + 50
+    elif pm25 <= 150.4:
+        return (100/(150.4-55.4)) * (pm25 - 55.4) + 100
+    elif pm25 <= 250.4:
+        return (100/(250.4-150.4)) * (pm25 - 150.4) + 200
+    elif pm25 <= 500:
+        return (200/(500-250.4)) * (pm25 - 250.4) + 300
+    else:
+        # Untuk nilai > 500
+        return (100/100) * (pm25 - 500) + 500
+
+def calculate_aqi_ispu(pm10, pm25):
+    """
+    Menghitung nilai ISPU akhir berdasarkan nilai tertinggi antara PM10 dan PM2.5
+    """
+    ispu_pm10 = pm10_to_ispu(pm10)
+    ispu_pm25 = pm25_to_ispu(pm25)
+    return max(ispu_pm10, ispu_pm25)
+
 def load_model():
     global model_config, model, scaler
     json_path = Path(__file__).resolve().parent / "model_config.json"
@@ -67,7 +111,7 @@ def load_model():
     
     model = RidgeLite(params['coefficients'], params['intercept'])
     scaler = ScalerLite(scaler_params['mean'], scaler_params['scale'])
-    print(f"✓ Model {model_config['model_type']} loaded with {len(model_config['feature_cols'])} features")
+    print(f"SUCCESS: Model {model_config['model_type']} loaded with {len(model_config['feature_cols'])} features")
     return True
 
 # Load model on startup
@@ -164,7 +208,7 @@ class HistoryItem(BaseModel):
     timestamp: str
     pm25: float = Field(..., alias="PM2.5_ug_m3")
     pm10: float = Field(..., alias="PM10_ug_m3")
-    aqi_ispu: float
+    aqi_ispu: Optional[float] = None # Menjadi opsional, akan dihitung jika kosong
 
 class PredictRequest(BaseModel):
     history: List[HistoryItem]
@@ -186,11 +230,16 @@ def predict(request: PredictRequest):
         # 1. Convert history to DataFrame
         data = []
         for item in request.history:
+            # Hitung AQI/ISPU jika tidak disediakan oleh IoT
+            current_aqi = item.aqi_ispu
+            if current_aqi is None:
+                current_aqi = calculate_aqi_ispu(item.pm10, item.pm25)
+                
             data.append({
                 "timestamp": item.timestamp,
                 "PM2.5_ug_m3": item.pm25,
                 "PM10_ug_m3": item.pm10,
-                "aqi_ispu": item.aqi_ispu
+                "aqi_ispu": current_aqi
             })
         
         df = pd.DataFrame(data)
