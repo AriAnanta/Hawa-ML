@@ -12,42 +12,38 @@ API ini digunakan untuk memprediksi Indeks Standar Pencemar Udara (ISPU) berdasa
 ### 2. Prediksi & Forecast 48 Jam
 - **URL**: `/predict`
 - **Method**: `POST`
-- **Deskripsi**: Menerima data historis 24 jam terakhir (PM2.5 & PM10) dan mengembalikan prediksi ISPU untuk jam berikutnya serta estimasi forecast untuk 48 jam ke depan. Nilai ISPU akan dihitung secara otomatis jika tidak disediakan.
+- **Deskripsi**: Menerima data historis (bisa data mentah per 30 detik atau per menit). Server akan otomatis melakukan **resampling ke rata-rata per jam** sebelum melakukan prediksi. Dibutuhkan minimal rentang data 24 jam.
 
 ## Contoh Input Data (JSON)
 
-API membutuhkan minimal **24 data historis** (24 jam) untuk menghitung fitur *rolling statistics*. Berikut adalah contoh data yang bisa Anda gunakan (nilai `aqi_ispu` sekarang opsional karena dihitung otomatis oleh server):
+### 1. Data per Jam (Standard)
+Berikut adalah contoh data **24 jam lengkap** (satu data per jam). Minimal dibutuhkan 24 data per jam untuk hasil yang akurat.
 
 ```json
 {
   "history": [
-    {"timestamp": "2024-07-03T00:00:00", "PM2.5_ug_m3": 25.5, "PM10_ug_m3": 40.2},
-    {"timestamp": "2024-07-03T01:00:00", "PM2.5_ug_m3": 26.1, "PM10_ug_m3": 41.0},
-    {"timestamp": "2024-07-03T02:00:00", "PM2.5_ug_m3": 24.8, "PM10_ug_m3": 39.5},
-    {"timestamp": "2024-07-03T03:00:00", "PM2.5_ug_m3": 23.2, "PM10_ug_m3": 38.0},
-    {"timestamp": "2024-07-03T04:00:00", "PM2.5_ug_m3": 22.5, "PM10_ug_m3": 37.2},
-    {"timestamp": "2024-07-03T05:00:00", "PM2.5_ug_m3": 21.0, "PM10_ug_m3": 36.5},
-    {"timestamp": "2024-07-03T06:00:00", "PM2.5_ug_m3": 28.5, "PM10_ug_m3": 42.0},
-    {"timestamp": "2024-07-03T07:00:00", "PM2.5_ug_m3": 35.2, "PM10_ug_m3": 48.5},
-    {"timestamp": "2024-07-03T08:00:00", "PM2.5_ug_m3": 38.0, "PM10_ug_m3": 52.1},
-    {"timestamp": "2024-07-03T09:00:00", "PM2.5_ug_m3": 40.5, "PM10_ug_m3": 55.0},
-    {"timestamp": "2024-07-03T10:00:00", "PM2.5_ug_m3": 42.1, "PM10_ug_m3": 58.2},
-    {"timestamp": "2024-07-03T11:00:00", "PM2.5_ug_m3": 39.5, "PM10_ug_m3": 56.0},
-    {"timestamp": "2024-07-03T12:00:00", "PM2.5_ug_m3": 37.0, "PM10_ug_m3": 53.5},
-    {"timestamp": "2024-07-03T13:00:00", "PM2.5_ug_m3": 35.5, "PM10_ug_m3": 51.2},
-    {"timestamp": "2024-07-03T14:00:00", "PM2.5_ug_m3": 34.2, "PM10_ug_m3": 50.0},
-    {"timestamp": "2024-07-03T15:00:00", "PM2.5_ug_m3": 33.0, "PM10_ug_m3": 49.2},
-    {"timestamp": "2024-07-03T16:00:00", "PM2.5_ug_m3": 36.5, "PM10_ug_m3": 52.5},
-    {"timestamp": "2024-07-03T17:00:00", "PM2.5_ug_m3": 45.0, "PM10_ug_m3": 62.1},
-    {"timestamp": "2024-07-03T18:00:00", "PM2.5_ug_m3": 48.2, "PM10_ug_m3": 65.5},
-    {"timestamp": "2024-07-03T19:00:00", "PM2.5_ug_m3": 50.5, "PM10_ug_m3": 68.2},
-    {"timestamp": "2024-07-03T20:00:00", "PM2.5_ug_m3": 45.1, "PM10_ug_m3": 62.5},
-    {"timestamp": "2024-07-03T21:00:00", "PM2.5_ug_m3": 40.2, "PM10_ug_m3": 58.0},
-    {"timestamp": "2024-07-03T22:00:00", "PM2.5_ug_m3": 35.5, "PM10_ug_m3": 52.5},
-    {"timestamp": "2024-07-03T23:00:00", "PM2.5_ug_m3": 30.2, "PM10_ug_m3": 45.5}
+    {"timestamp": "2025-12-05 00:00:00", "PM2.5_ug_m3": 25.5, "PM10_ug_m3": 35.2},
+    ...
+    {"timestamp": "2025-12-05 23:00:00", "PM2.5_ug_m3": 30.1, "PM10_ug_m3": 42.5}
   ]
 }
 ```
+
+### 2. Data IoT (Interval 30 Detik)
+API ini mendukung pengiriman data mentah langsung dari IoT (misal setiap 30 detik). Server akan otomatis merata-ratakan data tersebut ke dalam interval 1 jam. Pastikan total rentang waktu data yang dikirim mencakup minimal 24 jam.
+
+```json
+{
+  "history": [
+    {"timestamp": "2025-12-05 22:08:36", "PM2.5_ug_m3": 6.5, "PM10_ug_m3": 8.4},
+    {"timestamp": "2025-12-05 22:09:10", "PM2.5_ug_m3": 5.6, "PM10_ug_m3": 7.3},
+    {"timestamp": "2025-12-05 22:09:40", "PM2.5_ug_m3": 5.8, "PM10_ug_m3": 7.5},
+    {"timestamp": "2025-12-05 22:10:10", "PM2.5_ug_m3": 6.1, "PM10_ug_m3": 7.9},
+    {"timestamp": "2025-12-05 22:10:40", "PM2.5_ug_m3": 6.3, "PM10_ug_m3": 8.1}
+  ]
+}
+```
+*Catatan: Contoh di atas hanya cuplikan. Untuk prediksi yang valid, kirimkan data yang mencakup rentang waktu minimal 24 jam (sekitar 2880 data jika intervalnya 30 detik).*
 
 ## Contoh Output Data
 

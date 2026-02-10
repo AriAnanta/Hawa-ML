@@ -208,7 +208,6 @@ class HistoryItem(BaseModel):
     timestamp: str
     pm25: float = Field(..., alias="PM2.5_ug_m3")
     pm10: float = Field(..., alias="PM10_ug_m3")
-    aqi_ispu: Optional[float] = None # Menjadi opsional, akan dihitung jika kosong
 
 class PredictRequest(BaseModel):
     history: List[HistoryItem]
@@ -230,28 +229,70 @@ def predict(request: PredictRequest):
         # 1. Convert history to DataFrame
         data = []
         for item in request.history:
-            # Hitung AQI/ISPU jika tidak disediakan oleh IoT
-            current_aqi = item.aqi_ispu
-            if current_aqi is None:
-                current_aqi = calculate_aqi_ispu(item.pm10, item.pm25)
-                
             data.append({
                 "timestamp": item.timestamp,
                 "PM2.5_ug_m3": item.pm25,
-                "PM10_ug_m3": item.pm10,
-                "aqi_ispu": current_aqi
+                "PM10_ug_m3": item.pm10
             })
         
         df = pd.DataFrame(data)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        # Tambahkan kolom aqi_ispu kosong jika belum ada agar tidak error saat resampling
+        if 'aqi_ispu' not in df.columns:
+            df['aqi_ispu'] = np.nan
+        
+        # Konversi timestamp dengan penanganan format yang fleksibel
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        
+        # Hapus data dengan timestamp tidak valid
+        df = df.dropna(subset=['timestamp'])
+        
+        if df.empty:
+            raise HTTPException(status_code=400, detail="Tidak ada data valid yang bisa diproses.")
+
         df = df.sort_values('timestamp').set_index('timestamp')
         
-        # Cek kecukupan data (minimal 24 jam untuk rolling windows)
-        if len(df) < 24:
-            raise HTTPException(status_code=400, detail="Data history minimal 24 jam diperlukan untuk fitur rolling.")
+        # Cek rentang waktu data (minimal 24 jam)
+        duration = df.index.max() - df.index.min()
+        if duration < timedelta(hours=23, minutes=50): # Toleransi sedikit
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Rentang waktu data hanya {duration}. Dibutuhkan minimal 24 jam data historis."
+            )
+
+        # 2. Resample high-frequency data (30s, 1m, dll) ke rata-rata per jam
+        # '1H' resample akan mengelompokkan data berdasarkan jam (00:00, 01:00, dst)
+        df_hourly = df.resample('1H').mean()
+        
+        # Isi gap jika ada jam yang kosong menggunakan interpolasi linear
+        # Limit 3 jam untuk menghindari interpolasi pada gap yang terlalu besar
+        df_hourly = df_hourly.interpolate(method='linear', limit=3)
+        
+        # Tambahkan kolom aqi_ispu yang akan diisi
+        df_hourly['aqi_ispu'] = np.nan
+
+        # Hitung ulang ISPU pada data rata-rata per jam
+        # Ini penting karena ISPU(rata-rata PM) != rata-rata(ISPU)
+        for idx, row in df_hourly.iterrows():
+            # Selalu hitung ulang ISPU berdasarkan PM rata-rata per jam untuk akurasi model
+            if not pd.isna(row['PM10_ug_m3']) and not pd.isna(row['PM2.5_ug_m3']):
+                df_hourly.at[idx, 'aqi_ispu'] = calculate_aqi_ispu(row['PM10_ug_m3'], row['PM2.5_ug_m3'])
+        
+        # Drop rows yang masih memiliki NaN (gap > 3 jam atau di ujung data)
+        df_hourly = df_hourly.dropna()
+        
+        # Cek kembali kecukupan data setelah resampling & dropna
+        if len(df_hourly) < 24:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Data hasil agregasi per jam hanya tersedia {len(df_hourly)} jam (setelah menangani gap). Minimal dibutuhkan 24 jam data tanpa gap besar."
+            )
             
-        # 2. Create features
-        df_features = create_features_lite(df)
+        # Gunakan hanya 24 jam terakhir untuk fitur rolling agar konsisten
+        df_hourly = df_hourly.tail(24)
+            
+        # 3. Create features menggunakan data per jam
+        df_features = create_features_lite(df_hourly)
         
         # Tangani nilai NaN/Inf yang muncul dari perhitungan fitur (lag, diff, dll)
         df_features = df_features.replace([np.inf, -np.inf], np.nan).fillna(0)
@@ -274,7 +315,7 @@ def predict(request: PredictRequest):
         
         # 6. Generate 48h forecast (Simple autoregressive simulation for demo)
         # In real case, we might need a multi-step model, but here we simulate based on trend
-        last_aqi = df['aqi_ispu'].iloc[-1]
+        last_aqi = df_hourly['aqi_ispu'].iloc[-1]
         trend = (prediction - last_aqi) / 1.0 # simple 1h trend
         
         forecast = []

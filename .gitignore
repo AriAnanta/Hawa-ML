@@ -4,7 +4,8 @@ models/
 *.csv
 *.ipynb
 .ipynb_checkpoints/
-
+pp.py
+air_quality_24h.json
 # Deployment & Documentation
 DEPLOYMENT_GUIDE.md
 INTEGRATION_BACKEND.md
