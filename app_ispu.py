@@ -261,8 +261,8 @@ def predict(request: PredictRequest):
             )
 
         # 2. Resample high-frequency data (30s, 1m, dll) ke rata-rata per jam
-        # '1H' resample akan mengelompokkan data berdasarkan jam (00:00, 01:00, dst)
-        df_hourly = df.resample('1H').mean()
+        # '1h' resample akan mengelompokkan data berdasarkan jam (00:00, 01:00, dst)
+        df_hourly = df.resample('1h').mean()
         
         # Isi gap jika ada jam yang kosong menggunakan interpolasi linear
         # Limit 3 jam untuk menghindari interpolasi pada gap yang terlalu besar
